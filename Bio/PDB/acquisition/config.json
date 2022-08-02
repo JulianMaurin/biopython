@@ -1,0 +1,27 @@
+{
+  "default": {
+    "protocol": "FTP"
+  },
+  "servers": {
+    "WW": {
+      "label": "Worldwide",
+      "domain": "wwpdb.org",
+      "pdb_directory": "/pub/pdb"
+    },
+    "US": {
+      "label": "United States",
+      "domain": "rcsb.org",
+      "pdb_directory": "/pub/pdb"
+    },
+    "UK": {
+      "label": "United Kingdom",
+      "domain": "ebi.ac.uk",
+      "pdb_directory": "/pub/databases/pdb"
+    },
+    "JP": {
+      "label": "Japan",
+      "domain": "pdbj.org",
+      "pdb_directory": "/pub/pdb"
+    }
+  }
+}

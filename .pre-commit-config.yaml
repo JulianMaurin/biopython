@@ -63,6 +63,11 @@ repos:
             -L,
             'ser,hsa,hist,fpr'
         ]
+-   repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v2.5.1
+    hooks:
+    -   id: prettier
+        files: \.(json)$
 -   repo: local
     hooks:
     -   id: doi-link-style
