@@ -60,26 +60,6 @@ PDB_SERVERS = [
 ]
 
 
-class PDBServerProtocol(enum.IntEnum):
-    """Available protocol to access to PDB servers."""
-
-    HTTPS = 443
-    FTP = 21
-
-    @property
-    def port(self) -> int:
-        """Protocol port."""
-        return self.value
-
-    @property
-    def url_prefix(self) -> str:
-        """Build protocol url prefix."""
-        return f"{self.name.lower()}://"
-
-    def __str__(self) -> str:
-        return f"{self.name} ({self.value})"
-
-
 @functools.cache
 def get_server_connection_timing(
     server: PDBServer, protocol: PDBServerProtocol
