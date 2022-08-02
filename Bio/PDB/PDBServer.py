@@ -13,13 +13,13 @@ Materials:
 
 from __future__ import annotations
 
-import contextlib
 import dataclasses
 import enum
 import functools
 import re
-import socket
 import time
+
+from Bio.PDB.acquisition.utils import build_socket
 
 SERVER_REGEX = re.compile(
     r"^(?P<protocol>(http|ftp)s?):\/{2}(ftp\.)?(?P<domain>.*\..*?)(\/)?$"
@@ -121,24 +121,13 @@ def get_server_connection_timing(
 ) -> int | None:
     """Duration to connect to a PDB server."""
     domain = f"{server.subdomain(protocol)}{server.domain}"
-    with _build_socket() as server_socket:
+    with build_socket() as server_socket:
         time_before_connect = time.time()
         try:
             server_socket.connect((domain, protocol.port))
         except Exception:
             return None
         return time.time() - time_before_connect
-
-
-@contextlib.contextmanager
-def _build_socket():
-    """Context manager auto closing socket."""
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.settimeout(1)
-    try:
-        yield server_socket
-    finally:
-        server_socket.close()
 
 
 @functools.cache
