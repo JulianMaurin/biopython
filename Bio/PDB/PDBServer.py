@@ -16,14 +16,9 @@ from __future__ import annotations
 import dataclasses
 import enum
 import functools
-import re
 import time
 
 from Bio.PDB.acquisition.utils import build_socket
-
-SERVER_REGEX = re.compile(
-    r"^(?P<protocol>(http|ftp)s?):\/{2}(ftp\.)?(?P<domain>.*\..*?)(\/)?$"
-)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -117,31 +112,3 @@ def get_fastest_server(protocol: PDBServerProtocol) -> PDBServer:
         raise PDBServersConnectionError(protocol)
 
     return fastest_server
-
-
-def handle_legacy_server(server: str) -> tuple(PDBServer, PDBServerProtocol):
-    """Provide support for legacy server declaration (as string)."""
-    try:
-        match = SERVER_REGEX.match(server.lower())
-        protocol_str = match["protocol"]
-        domain_str = match["domain"]
-    except Exception:
-        raise UnsupportedServerError(server=server)
-
-    protocol_obj = None
-    for available_protocol in PDBServerProtocol:
-        if available_protocol.name.lower() == protocol_str:
-            protocol_obj = available_protocol
-            break
-    if not protocol_obj:
-        raise UnsupportedProtocolError(protocol=protocol_str)
-
-    server_obj = None
-    for available_server in PDB_SERVERS:
-        if available_server.domain == domain_str:
-            server_obj = available_server
-            break
-    if not server_obj or not protocol_obj:
-        raise UnsupportedServerError(server=server)
-
-    return (server_obj, protocol_obj)
