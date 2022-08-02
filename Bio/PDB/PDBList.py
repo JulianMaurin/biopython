@@ -49,10 +49,7 @@ from urllib.request import urlretrieve
 import warnings
 from Bio import BiopythonDeprecationWarning
 
-from Bio.PDB import PDBServer
-
-
-DEFAULT_PROTOCOL = PDBServer.PDBServerProtocol.FTP
+from Bio.PDB import acquisition
 
 
 class PDBList:
@@ -116,24 +113,25 @@ class PDBList:
         # variable for command-line option
         self.flat_tree = False
 
-    def _get_pdb_server_url(self, server: str | PDBServer.PDBServer | None) -> str:
-        """Get remote PDB server url.
+    def _get_pdb_server_url(self, server: str | acquisition.PDBServer | None) -> str:
+        """
+        Get remote PDB server url.
 
         Handle legacy server declaration (str).
         If no server specified, chose the fastest one.
         """
-        pdb_server: PDBServer.PDBServer | None = None
-        protocol = DEFAULT_PROTOCOL
+        pdb_server: acquisition.PDBServer | None = None
+        protocol = acquisition.get_default_protocol()
         if isinstance(server, str):
             warnings.warn(
                 "PDBList server argument as string is deprecated.",
                 BiopythonDeprecationWarning,
             )
-            pdb_server, protocol = PDBServer.handle_legacy_server(server)
-        elif isinstance(server, PDBServer.PDBServer):
+            pdb_server, protocol = acquisition.handle_legacy_server(server)
+        elif isinstance(server, acquisition.PDBServer):
             pdb_server = server
         elif server is None:
-            pdb_server = PDBServer.get_fastest_server(protocol=protocol)
+            pdb_server = acquisition.get_fastest_server(protocol=protocol)
 
         if pdb_server:
             return pdb_server.build_pdb_directory_url(protocol)

@@ -14,3 +14,14 @@ NOTE: only export the object consumed outside of the module.
 # This code is part of the Biopython distribution and governed by its
 # license.  Please see the LICENSE file that should have been included
 # as part of this package.
+
+from Bio.PDB.acquisition.legacy import handle_legacy_server
+from Bio.PDB.acquisition.protocol import get_default_protocol
+from Bio.PDB.acquisition.server import PDBServer, get_fastest_server
+
+__all__ = [
+    "get_default_protocol",
+    "handle_legacy_server",
+    "PDBServer",
+    "get_fastest_server",
+]
