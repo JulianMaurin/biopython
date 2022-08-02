@@ -51,6 +51,9 @@ Tests/test_motifs*.py @mdehoon
 Bio/PDB/* @joaorodrigues @lennax
 Tests/test_PDB*.py @joaorodrigues @lennax
 
+Bio/PDB/acquisition/* @JulianMaurin
+Tests/test_acquisition/* @JulianMaurin
+
 Bio/Phylo/* @etal
 Tests/test_Phylo*.py @etal
 
