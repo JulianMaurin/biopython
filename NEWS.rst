@@ -72,6 +72,7 @@ possible, especially the following contributors:
 - Jacob Beal (first contribution)
 - João Rodrigues
 - Jarrod Millman
+- Julian Maurin (first contribution)
 - Markus Piotrowski
 - Michiel de Hoon
 - Neil P. (first contribution)
