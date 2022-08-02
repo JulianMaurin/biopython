@@ -35,17 +35,24 @@
 
 """Access the PDB over the internet (e.g. to download structures)."""
 
+from __future__ import annotations
 
 import contextlib
 import gzip
 import os
-import shutil
 import re
+import shutil
 import sys
-
+from urllib.request import urlcleanup
 from urllib.request import urlopen
 from urllib.request import urlretrieve
-from urllib.request import urlcleanup
+import warnings
+from Bio import BiopythonDeprecationWarning
+
+from Bio.PDB import PDBServer
+
+
+DEFAULT_PROTOCOL = PDBServer.PDBServerProtocol.FTP
 
 
 class PDBList:
@@ -83,15 +90,13 @@ class PDBList:
     http://www.pdb.org/.
     """
 
-    def __init__(
-        self, server="ftp://ftp.wwpdb.org", pdb=None, obsolete_pdb=None, verbose=True
-    ):
+    def __init__(self, server=None, pdb=None, obsolete_pdb=None, verbose=True):
         """Initialize the class with the default server or a custom one.
 
         Argument pdb is the local path to use, defaulting to the current
         directory at the moment of initialisation.
         """
-        self.pdb_server = server  # remote pdb server
+        self.pdb_server = self._get_pdb_server_url(server)  # remote pdb server
         if pdb:
             self.local_pdb = pdb  # local pdb file tree
         else:
@@ -110,6 +115,30 @@ class PDBList:
 
         # variable for command-line option
         self.flat_tree = False
+
+    def _get_pdb_server_url(self, server: str | PDBServer.PDBServer | None) -> str:
+        """Get remote PDB server url.
+
+        Handle legacy server declaration (str).
+        If no server specified, chose the fastest one.
+        """
+        pdb_server: PDBServer.PDBServer | None = None
+        protocol = DEFAULT_PROTOCOL
+        if isinstance(server, str):
+            warnings.warn(
+                "PDBList server argument as string is deprecated.",
+                BiopythonDeprecationWarning,
+            )
+            pdb_server, protocol = PDBServer.handle_legacy_server(server)
+        elif isinstance(server, PDBServer.PDBServer):
+            pdb_server = server
+        elif server is None:
+            pdb_server = PDBServer.get_fastest_server(protocol=protocol)
+
+        if pdb_server:
+            return pdb_server.build_pdb_directory_url(protocol)
+
+        raise TypeError(f"Unexpected server (server: {server}")
 
     @staticmethod
     def _print_default_format_warning(file_format):
@@ -156,12 +185,12 @@ class PDBList:
             -rw-r--r--   1 1002     sysadmin    1327 Mar 12  2001 README
 
         """
-        path = self.pdb_server + "/pub/pdb/data/status/latest/"
+        url = f"{self.pdb_server}/data/status/latest"
 
         # Retrieve the lists
-        added = self.get_status_list(path + "added.pdb")
-        modified = self.get_status_list(path + "modified.pdb")
-        obsolete = self.get_status_list(path + "obsolete.pdb")
+        added = self.get_status_list(f"{url}/added.pdb")
+        modified = self.get_status_list(f"{url}/modified.pdb")
+        obsolete = self.get_status_list(f"{url}/obsolete.pdb")
         return [added, modified, obsolete]
 
     def get_all_entries(self):
@@ -169,7 +198,7 @@ class PDBList:
 
         Returns a list of PDB codes in the index file.
         """
-        url = self.pdb_server + "/pub/pdb/derived_data/index/entries.idx"
+        url = f"{self.pdb_server}/derived_data/index/entries.idx"
         if self._verbose:
             print("Retrieving index file. Takes about 27 MB.")
         with contextlib.closing(urlopen(url)) as handle:
@@ -201,7 +230,7 @@ class PDBList:
             ...
 
         """
-        url = self.pdb_server + "/pub/pdb/data/status/obsolete.dat"
+        url = f"{self.pdb_server}/data/status/obsolete.dat"
         with contextlib.closing(urlopen(url)) as handle:
             # Extract pdb codes. Could use a list comprehension, but I want
             # to include an assert to check for mis-reading the data.
@@ -289,17 +318,14 @@ class PDBList:
                 if file_format == "mmCif"
                 else "XML"
             )
-            url = self.pdb_server + "/pub/pdb/data/structures/%s/%s/%s/%s" % (
-                pdb_dir,
-                file_type,
-                code[1:3],
-                archive_fn,
+            url = (
+                f"{self.pdb_server}/data/structures/"
+                f"{pdb_dir}/{file_type}/{code[1:3]}/{archive_fn}"
             )
         elif file_format == "bundle":
-            url = self.pdb_server + "/pub/pdb/compatible/pdb_bundle/%s/%s/%s" % (
-                code[1:3],
-                code,
-                archive_fn,
+            url = (
+                f"{self.pdb_server}/compatible/pdb_bundle/"
+                f"{code[1:3]}/{code}/{archive_fn}"
             )
         else:
             url = f"http://mmtf.rcsb.org/v1.0/full/{code}"
@@ -496,7 +522,7 @@ class PDBList:
         """Retrieve and save a (big) file containing all the sequences of PDB entries."""
         if self._verbose:
             print("Retrieving sequence file (takes over 110 MB).")
-        url = self.pdb_server + "/pub/pdb/derived_data/pdb_seqres.txt"
+        url = f"{self.pdb_server}/derived_data/pdb_seqres.txt"
         urlretrieve(url, savefile)
 
 
