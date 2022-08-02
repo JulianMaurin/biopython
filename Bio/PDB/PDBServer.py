@@ -85,36 +85,6 @@ class PDBServerProtocol(enum.IntEnum):
         return f"{self.name} ({self.value})"
 
 
-class PDBServersConnectionError(Exception):
-    """Unable to connect to any PDB server."""
-
-    def __init__(self, protocol: PDBServerProtocol) -> None:
-        """Build PDBServersConnectionError message."""
-        super().__init__(
-            f"Unable to connect to any PDB servers (protocol: {protocol.name}, servers: {', '.join([str(server) for server in PDB_SERVERS])})."
-        )
-
-
-class UnsupportedServerError(Exception):
-    """PDB Server is not supported."""
-
-    def __init__(self, server: str) -> None:
-        """Build UnsupportedServerError message."""
-        super().__init__(
-            f"PDB server is not supported (server: {server}, supported servers: {', '.join([str(server) for server in PDB_SERVERS])})."
-        )
-
-
-class UnsupportedProtocolError(Exception):
-    """Protocol is not supported."""
-
-    def __init__(self, protocol: str) -> None:
-        """Build UnsupportedProtocolError message."""
-        super().__init__(
-            f"Protocol is not supported (protocol: {protocol}, supported protocol: {', '.join([str(_protocol) for _protocol in PDBServerProtocol])})."
-        )
-
-
 @functools.cache
 def get_server_connection_timing(
     server: PDBServer, protocol: PDBServerProtocol
