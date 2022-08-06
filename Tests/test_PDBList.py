@@ -8,12 +8,15 @@
 
 import contextlib
 import os
+import pathlib
 import shutil
 import tempfile
 import unittest
+import unittest.mock
 
 # We want to test this module:
 from Bio.PDB.PDBList import PDBList
+from Bio.PDB.PDBServer import PDB_SERVERS, PDBServer, PDBServerProtocol
 
 import requires_internet
 
@@ -211,6 +214,52 @@ class TestPDBListGetAssembly(unittest.TestCase):
             "mmCif",
             pdir="b",
         )
+
+
+class RetrievePDBFileTestMixin:
+    """Mixin providing methods to test PDB file retrieving using FTP and HTTPS."""
+
+    SERVER: PDBServer
+    PDB_ENTRY_CODE = "127d"
+
+    def _retrieve_pdb_file(self, protocol):
+        with tempfile.TemporaryDirectory(dir=os.getcwd()) as temporary_directory_path:
+            with unittest.mock.patch("Bio.PDB.PDBServer.DEFAULT_PROTOCOL", protocol):
+                pdblist = PDBList(server=self.SERVER, pdb=temporary_directory_path)
+            self.assertTrue(
+                pathlib.Path(pdblist.retrieve_pdb_file(self.PDB_ENTRY_CODE)).exists(),
+                msg=f"Error downloading pdb entry (protocol: {protocol}, server: {self.SERVER}).",
+            )
+
+    def test_HTTPS(self):
+        self._retrieve_pdb_file(PDBServerProtocol.HTTPS)
+
+    def test_FTP(self):
+        self._retrieve_pdb_file(PDBServerProtocol.FTP)
+
+
+class TestDownloadPDBFromWWServer(RetrievePDBFileTestMixin, unittest.TestCase):
+    """Test PDB file retrieving using FTP and HTTPS on the worldwide server."""
+
+    SERVER = PDB_SERVERS["WW"]
+
+
+class TestDownloadPDBFromUSServer(RetrievePDBFileTestMixin, unittest.TestCase):
+    """Test PDB file retrieving using FTP and HTTPS on the US server."""
+
+    SERVER = PDB_SERVERS["US"]
+
+
+class TestDownloadPDBFromUKServer(RetrievePDBFileTestMixin, unittest.TestCase):
+    """Test PDB file retrieving using FTP and HTTPS on the UK server."""
+
+    SERVER = PDB_SERVERS["UK"]
+
+
+class TestDownloadPDBFromJPServer(RetrievePDBFileTestMixin, unittest.TestCase):
+    """Test PDB file retrieving using FTP and HTTPS on the JP server."""
+
+    SERVER = PDB_SERVERS["JP"]
 
 
 if __name__ == "__main__":
