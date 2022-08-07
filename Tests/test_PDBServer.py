@@ -5,8 +5,14 @@
 
 """Testing PDB server utils."""
 
+import urllib.error
+import os
+import pathlib
+import tempfile
 import unittest
 import unittest.mock
+import uuid
+from Bio.PDB.PDBFile import FILE_FORMATS, PDBFileFormat
 
 import requires_internet
 
@@ -76,6 +82,142 @@ class TestHandleLegacyServer(unittest.TestCase):
         """Check that exception is raised if the server is not handled."""
         with self.assertRaises(PDBServer.UnsupportedServerError):
             PDBServer.handle_legacy_server("ftp://ftp.not-a-supported-server.org")
+
+
+class RetrievePDBFileTestMixin:
+    """Mixin providing methods to test PDB file retrieving using FTP and HTTPS."""
+
+    SERVER: PDBServer
+    PDB_CODE = "127d"
+    PDB_BUNDLE_CODE = "3k1q"
+
+    def _retrieve_file(self, file_format, protocol, code=None, index=None):
+        if (
+            self.SERVER not in file_format.servers
+            or protocol not in file_format.protocols
+        ):
+            return
+        with tempfile.TemporaryDirectory(dir=os.getcwd()) as temporary_directory_path:
+            filepath = pathlib.Path(temporary_directory_path, str(uuid.uuid4()))
+            self.SERVER.retrieve_file(
+                path=filepath,
+                code=code or self.PDB_CODE,
+                file_format=file_format,
+                protocol=protocol,
+                index=index,
+            )
+            self.assertTrue(
+                filepath.exists(),
+                msg=f"Error downloading file (format: {file_format}, protocol: {protocol}, server: {self.SERVER}).",
+            )
+
+    def test_HTTPS_PDB(self):
+        self._retrieve_file(
+            protocol=PDBServer.PDBServerProtocol.HTTPS, file_format=FILE_FORMATS["PDB"]
+        )
+
+    def test_HTTPS_PDB_ASSEMBLY(self):
+        self._retrieve_file(
+            protocol=PDBServer.PDBServerProtocol.HTTPS,
+            file_format=FILE_FORMATS["PDB_ASSEMBLY"],
+            index=1,
+        )
+
+    def test_HTTPS_MMCIF(self):
+        self._retrieve_file(
+            protocol=PDBServer.PDBServerProtocol.HTTPS,
+            file_format=FILE_FORMATS["MMCIF"],
+        )
+
+    def test_HTTPS_MMCIF_ASSEMBLY(self):
+        self._retrieve_file(
+            protocol=PDBServer.PDBServerProtocol.HTTPS,
+            file_format=FILE_FORMATS["MMCIF_ASSEMBLY"],
+            index=1,
+        )
+
+    def test_HTTPS_PDBML(self):
+        self._retrieve_file(
+            protocol=PDBServer.PDBServerProtocol.HTTPS,
+            file_format=FILE_FORMATS["PDBML"],
+        )
+
+    def test_HTTPS_PDB_BUNDLE(self):
+        self._retrieve_file(
+            protocol=PDBServer.PDBServerProtocol.HTTPS,
+            file_format=FILE_FORMATS["PDB_BUNDLE"],
+            code=self.PDB_BUNDLE_CODE,
+        )
+
+    def test_HTTPS_MMTF(self):
+        self._retrieve_file(
+            protocol=PDBServer.PDBServerProtocol.HTTPS, file_format=FILE_FORMATS["MMTF"]
+        )
+
+    def test_FTP_PDB(self):
+        self._retrieve_file(
+            protocol=PDBServer.PDBServerProtocol.FTP, file_format=FILE_FORMATS["PDB"]
+        )
+
+    def test_FTP_PDB_ASSEMBLY(self):
+        self._retrieve_file(
+            protocol=PDBServer.PDBServerProtocol.FTP,
+            file_format=FILE_FORMATS["PDB_ASSEMBLY"],
+            index=1,
+        )
+
+    def test_FTP_MMCIF(self):
+        self._retrieve_file(
+            protocol=PDBServer.PDBServerProtocol.FTP, file_format=FILE_FORMATS["MMCIF"]
+        )
+
+    def test_FTP_MMCIF_ASSEMBLY(self):
+        self._retrieve_file(
+            protocol=PDBServer.PDBServerProtocol.FTP,
+            file_format=FILE_FORMATS["MMCIF_ASSEMBLY"],
+            index=1,
+        )
+
+    def test_FTP_PDBML(self):
+        self._retrieve_file(
+            protocol=PDBServer.PDBServerProtocol.FTP, file_format=FILE_FORMATS["PDBML"]
+        )
+
+    def test_FTP_PDB_BUNDLE(self):
+        self._retrieve_file(
+            protocol=PDBServer.PDBServerProtocol.FTP,
+            file_format=FILE_FORMATS["PDB_BUNDLE"],
+            code=self.PDB_BUNDLE_CODE,
+        )
+
+    def test_FTP_MMTF(self):
+        self._retrieve_file(
+            protocol=PDBServer.PDBServerProtocol.FTP, file_format=FILE_FORMATS["MMTF"]
+        )
+
+
+class TestDownloadPDBFromWWServer(RetrievePDBFileTestMixin, unittest.TestCase):
+    """Test PDB file retrieving using FTP and HTTPS on the worldwide server."""
+
+    SERVER = PDBServer.PDB_SERVERS["WW"]
+
+
+class TestDownloadPDBFromUSServer(RetrievePDBFileTestMixin, unittest.TestCase):
+    """Test PDB file retrieving using FTP and HTTPS on the US server."""
+
+    SERVER = PDBServer.PDB_SERVERS["US"]
+
+
+class TestDownloadPDBFromUKServer(RetrievePDBFileTestMixin, unittest.TestCase):
+    """Test PDB file retrieving using FTP and HTTPS on the UK server."""
+
+    SERVER = PDBServer.PDB_SERVERS["UK"]
+
+
+class TestDownloadPDBFromJPServer(RetrievePDBFileTestMixin, unittest.TestCase):
+    """Test PDB file retrieving using FTP and HTTPS on the JP server."""
+
+    SERVER = PDBServer.PDB_SERVERS["JP"]
 
 
 if __name__ == "__main__":

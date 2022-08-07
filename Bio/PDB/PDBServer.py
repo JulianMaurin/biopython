@@ -6,8 +6,11 @@
 """
 Protein Data Bank (PDB) server module.
 
+Provides logics and data to interact with PDB Server.
+
 Materials:
 - https://www.wwpdb.org/ftp/pdb-ftp-sites
+- https://www.rcsb.org/docs/general-help/glossary
 - https://www.rcsb.org/docs/programmatic-access/file-download-services
 """
 
@@ -20,6 +23,22 @@ import functools
 import re
 import socket
 import time
+from pathlib import Path
+from typing import TYPE_CHECKING
+from urllib import request
+
+if TYPE_CHECKING:
+    from Bio.PDB.PDBFile import PDBFileFormat
+
+
+def install_urllib_opener() -> None:
+    """HTTP request to PDB server without user agent header may be rejected."""
+    opener = request.build_opener()
+    opener.addheaders = [("User-agent", "biopython")]
+    request.install_opener(opener)
+
+
+install_urllib_opener()
 
 
 class PDBServerProtocol(enum.IntEnum):
@@ -32,6 +51,11 @@ class PDBServerProtocol(enum.IntEnum):
     def port(self) -> int:
         """Protocol port."""
         return self.value
+
+    @property
+    def method(self) -> str:
+        """Protocol method."""
+        return self.name.lower()
 
     def __str__(self) -> str:
         return f"{self.name} ({self.value})"
@@ -50,23 +74,88 @@ class PDBServer:
     def __str__(self) -> str:
         return f"{self.label} ({self.domain})"
 
-    def subdomain(self, protocol: PDBServerProtocol) -> str:
-        """Build subdomain URL part based on the protocol."""
+    def subdomain(self, protocol: PDBServerProtocol, file_format: PDBFileFormat) -> str:
+        """Build URL subdomain based on the protocol or on the file format."""
+        if protocol not in file_format.protocols:
+            raise UnsupportedProtocolError(
+                f"File format is not available using this protocol  (format: {file_format}, protocol: {protocol}, server: {self})."
+            )
+        # The subdomain from the format is overriding the one from the protocol.
+        if file_format.subdomain:
+            return file_format.subdomain
         if protocol == PDBServerProtocol.FTP:
             return self.ftp_subdomain
-        elif protocol == PDBServerProtocol.HTTPS:
+        if protocol == PDBServerProtocol.HTTPS:
             return self.http_subdomain
         raise UnsupportedProtocolError(
             f"Unable to determine the subdomain corresponding to this protocol (protocol: {protocol}, server: {self})."
         )
 
-    def build_full_domain(self, protocol: PDBServerProtocol) -> str:
+    def build_full_domain(
+        self, protocol: PDBServerProtocol, file_format: PDBFileFormat
+    ) -> str:
         """Aggregate domain and subdomain."""
-        return f"{self.subdomain(protocol)}.{self.domain}"
+        return f"{self.subdomain(protocol, file_format)}.{self.domain}"
+
+    def build_full_domain_legacy(self, protocol: PDBServerProtocol) -> str:
+        """Build full domain without specifying the file format."""
+        if protocol == PDBServerProtocol.FTP:
+            return f"{self.ftp_subdomain}.{self.domain}"
+        elif protocol == PDBServerProtocol.HTTPS:
+            return f"{self.http_subdomain}.{self.domain}"
+        else:
+            raise UnsupportedProtocolError(
+                f"Unable to determine the subdomain corresponding to this protocol (protocol: {protocol}, server: {self})."
+            )
 
     def build_pdb_directory_url(self, protocol: PDBServerProtocol) -> str:
-        """Build URL to server pdb directory."""
-        return f"{protocol.name.lower()}://{self.build_full_domain(protocol)}{self.pdb_directory}"
+        """Build URL to server pdb directory (DEPRECATED).
+
+        This is not taking account the file format.
+        As expected by the legacy call.
+        """
+        return f"{protocol.method}://{self.build_full_domain_legacy(protocol)}{self.pdb_directory}"
+
+    def build_file_url(
+        self,
+        code: str,
+        file_format: PDBFileFormat,
+        protocol: PDBServerProtocol,
+        compressed: bool = False,
+        obsolete: bool = False,
+        index: int | None = None,
+    ):
+        """Build URL to the file on the server."""
+        return (
+            f"{protocol.method}://"
+            f"{self.build_full_domain(protocol, file_format)}"
+            f"{self.pdb_directory if file_format.is_located_into_pdb_directory else ''}"
+            f"{file_format.build_path(code=code, compressed=compressed, obsolete=obsolete, index=index)}"
+        )
+
+    def retrieve_file(
+        self,
+        path: Path,
+        code: str,
+        file_format: PDBFileFormat,
+        protocol: PDBServerProtocol,
+        compressed: bool = True,
+        obsolete: bool = False,
+        index: int | None = None,
+    ):
+        """Download file from the server and save it locally."""
+        url = self.build_file_url(
+            code=code,
+            file_format=file_format,
+            protocol=protocol,
+            compressed=compressed,
+            obsolete=obsolete,
+            index=index,
+        )
+        request.urlretrieve(url, str(path))
+
+    def __del__(self):
+        request.urlcleanup()
 
 
 DEFAULT_PROTOCOL = PDBServerProtocol.FTP
@@ -118,7 +207,9 @@ def get_server_connection_timing(
     with _build_socket() as server_socket:
         time_before_connect = time.time()
         try:
-            server_socket.connect((server.build_full_domain(protocol), protocol.port))
+            server_socket.connect(
+                (server.build_full_domain_legacy(protocol), protocol.port)
+            )
         except Exception:
             return None
         return time.time() - time_before_connect

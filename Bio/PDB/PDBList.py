@@ -33,7 +33,7 @@
 # Any maintainer of the Biopython code may change this notice
 # when appropriate.
 
-"""Access the PDB over the internet (e.g. to download structures)."""
+"""Create PDB local repository downloading file from PDB server."""
 
 from __future__ import annotations
 
@@ -44,13 +44,15 @@ import os
 import re
 import shutil
 import sys
+from typing import TYPE_CHECKING
 from urllib import request
 from urllib.request import urlopen
 from urllib.request import urlretrieve
 import warnings
 from Bio import BiopythonDeprecationWarning
 
-from Bio.PDB import PDBServer
+if TYPE_CHECKING:
+    from Bio.PDB import PDBServer
 
 
 class PDBList:
@@ -136,6 +138,8 @@ class PDBList:
         Handle legacy server declaration (str).
         If no server specified, chose the fastest one.
         """
+        from Bio.PDB import PDBServer
+
         pdb_server: PDBServer.PDBServer | None = None
         protocol = PDBServer.DEFAULT_PROTOCOL
         if isinstance(server, str):
