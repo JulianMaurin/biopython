@@ -88,14 +88,28 @@ class PDBList:
     http://www.pdb.org/.
     """
 
-    def __init__(self, server=None, pdb=None, obsolete_pdb=None, verbose=True):
+    def __init__(
+        self,
+        server=None,
+        pdb=None,
+        obsolete_pdb=None,
+        verbose=True,
+        with_assemblies=False,
+    ):
         """Initialize the class with the default server or a custom one.
 
         Argument pdb is the local path to use, defaulting to the current
         directory at the moment of initialisation.
         """
         self.opener = request.build_opener()
-        self.pdb_server = self._get_pdb_server_url(server)  # remote pdb server
+        # Enforce usage of wwpdb.org to download assembly files.
+        # Temporary patch until the file retrieving got refactored.
+        # See discussions & PRs related: https://github.com/biopython/biopython/issues/3988
+        self.pdb_server = (
+            "ftp://ftp.wwpdb.org/pub/pdb"
+            if with_assemblies
+            else self._get_pdb_server_url(server)
+        )  # remote pdb server
 
         if pdb:
             self.local_pdb = pdb  # local pdb file tree
@@ -508,11 +522,12 @@ class PDBList:
             print("Retrieving list of assemblies. This might take a while.")
 
         # FTPLib is much faster than urlopen
-        idx = self.pdb_server.find("://")
+        pdb_server = self.pdb_server.replace("/pub/pdb", "")
+        idx = pdb_server.find("://")
         if idx >= 0:
-            ftp = ftplib.FTP(self.pdb_server[idx + 3 :])
+            ftp = ftplib.FTP(pdb_server[idx + 3 :])
         else:
-            ftp = ftplib.FTP(self.pdb_server)
+            ftp = ftplib.FTP(pdb_server)
         ftp.login()  # anonymous
 
         if file_format.lower() == "mmcif":
@@ -578,9 +593,9 @@ class PDBList:
         archive_fn = archive[file_format] % (pdb_code.lower(), int(assembly_num))
 
         if file_format == "mmcif":
-            url = self.pdb_server + "/pub/pdb/data/assemblies/mmCIF/all/%s" % archive_fn
+            url = self.pdb_server + "/data/assemblies/mmCIF/all/%s" % archive_fn
         elif file_format == "pdb":
-            url = self.pdb_server + "/pub/pdb/data/biounit/PDB/all/%s" % archive_fn
+            url = self.pdb_server + "/data/biounit/PDB/all/%s" % archive_fn
         else:  # better safe than sorry
             raise ValueError("file_format '%s' not supported: %s" % file_format)
 
@@ -611,7 +626,7 @@ class PDBList:
                 f"'{pdb_code}'..."
             )
         try:
-            urlcleanup()
+            request.urlcleanup()
             urlretrieve(url, assembly_gz_file)
         except OSError as err:
             print(f"Download failed! Maybe the desired assembly does not exist: {err}")
@@ -739,11 +754,11 @@ if __name__ == "__main__":
 
     if len(sys.argv) > 2:
         pdb_path = sys.argv[2]
-        pl = PDBList(pdb=pdb_path)
+        flat_tree = False
         if len(sys.argv) > 3:
             for option in sys.argv[3:]:
                 if option == "-d":
-                    pl.flat_tree = True
+                    flat_tree = True
                 elif option == "-o":
                     overwrite = True
                 elif option in ("-pdb", "-xml", "-mmtf"):
@@ -751,7 +766,7 @@ if __name__ == "__main__":
                 # Allow for download of assemblies alongside ASU
                 elif option == "-with-assemblies":
                     with_assemblies = True
-
+        pl = PDBList(pdb=pdb_path, flat_tree=True)
     else:
         pdb_path = os.getcwd()
         pl = PDBList()

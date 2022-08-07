@@ -55,7 +55,7 @@ class TestPBDListGetList(unittest.TestCase):
     def test_get_all_assemblies(self):
         """Tests the Bio.PDB.PDBList.get_all_assemblies method."""
         # obsolete_pdb declared to prevent from creating the "obsolete" directory
-        pdblist = PDBList(obsolete_pdb="unimportant")
+        pdblist = PDBList(obsolete_pdb="unimportant", with_assemblies=True)
         entries = pdblist.get_all_assemblies()
         # As number of obsolete entries constantly grow, test checks if a certain number
         # was exceeded
@@ -165,7 +165,7 @@ class TestPDBListGetAssembly(unittest.TestCase):
 
     def check(self, structure, assembly_num, filename, file_format, pdir=None):
         with self.make_temp_directory(os.getcwd()) as tmp:
-            pdblist = PDBList(pdb=tmp)
+            pdblist = PDBList(pdb=tmp, with_assemblies=True)
             path = os.path.join(tmp, filename)
             if pdir:
                 pdir = os.path.join(tmp, pdir)
