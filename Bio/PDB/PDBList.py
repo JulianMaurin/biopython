@@ -116,6 +116,13 @@ class PDBServer:
                 r"OBSLTE\s+\d{2}-\w{3}-\d{2}\s+(\w{4})", handle.read().decode()
             )
 
+    @functools.cached_property
+    def sequences(self):
+        """Retrieve and save a (big) file containing all the sequences of PDB entries."""
+        url = urljoin(self.pdb_dir_url, "derived_data/pdb_seqres.txt")
+        with contextlib.closing(urlopen(url)) as handle:
+            return handle.read()
+
 
 SERVERS = [
     PDBServer("ftp://ftp.rcsb.org/pub/pdb/"),
@@ -598,8 +605,8 @@ class PDBList:
         """Retrieve and save a (big) file containing all the sequences of PDB entries."""
         if self._verbose:
             print("Retrieving sequence file (takes over 110 MB).")
-        url = urljoin(self.pdb_server.pdb_dir_url, "derived_data/pdb_seqres.txt")
-        urlretrieve(url, savefile)
+        with open(savefile, "wb+") as steam:
+            steam.write(self.pdb_server.sequences)
 
 
 @functools.lru_cache(maxsize=None)

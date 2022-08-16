@@ -201,6 +201,10 @@ class TestPDBServer(unittest.TestCase):
         """Tests the Bio.PDB.PDBList.entries method."""
         self.assertGreater(len(get_fastest_server().obsoletes), 4300)
 
+    def test_sequences(self):
+        """Tests the Bio.PDB.PDBList.sequences method."""
+        self.assertIsNotNone(get_fastest_server().sequences)
+
 
 if __name__ == "__main__":
     runner = unittest.TextTestRunner(verbosity=2)
