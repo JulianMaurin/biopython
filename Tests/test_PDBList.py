@@ -22,19 +22,6 @@ import requires_internet
 requires_internet.check()
 
 
-class TestPBDListGetList(unittest.TestCase):
-    """Test methods responsible for getting lists of entries."""
-
-    def test_get_all_obsolete(self):
-        """Tests the Bio.PDB.PDBList.get_all_obsolete method."""
-        # obsolete_pdb declared to prevent from creating the "obsolete" directory
-        pdblist = PDBList(obsolete_pdb="unimportant")
-        entries = pdblist.get_all_obsolete()
-        # As number of obsolete entries constantly grow, test checks if a certain number
-        # was exceeded
-        self.assertGreater(len(entries), 3000)
-
-
 class TestPDBListGetStructure(unittest.TestCase):
     """Test methods responsible for getting structures."""
 
@@ -209,6 +196,10 @@ class TestPDBServer(unittest.TestCase):
     def test_latests(self):
         """Tests the Bio.PDB.PDBList.latests method."""
         self.assertEqual(len(get_fastest_server().latests), 3)
+
+    def test_obsoletes(self):
+        """Tests the Bio.PDB.PDBList.entries method."""
+        self.assertGreater(len(get_fastest_server().obsoletes), 4300)
 
 
 if __name__ == "__main__":
