@@ -42,15 +42,6 @@ class TestPBDListGetList(unittest.TestCase):
         # was exceeded
         self.assertGreater(len(entries), 3000)
 
-    def test_get_all_assemblies(self):
-        """Tests the Bio.PDB.PDBList.get_all_assemblies method."""
-        # obsolete_pdb declared to prevent from creating the "obsolete" directory
-        pdblist = PDBList(obsolete_pdb="unimportant")
-        entries = pdblist.get_all_assemblies()
-        # As number of obsolete entries constantly grow, test checks if a certain number
-        # was exceeded
-        self.assertGreater(len(entries), 100000)
-
 
 class TestPDBListGetStructure(unittest.TestCase):
     """Test methods responsible for getting structures."""
@@ -140,6 +131,16 @@ class TestPDBListGetStructure(unittest.TestCase):
         structure = "127d"
         self.check(structure, os.path.join("a", f"{structure}.cif"), "mmCif", pdir="a")
         self.check(structure, os.path.join("b", f"{structure}.cif"), "mmCif", pdir="b")
+
+    def test_download_assemblies(self):
+        """Tests the Bio.PDB.PDBList.download_assemblies method."""
+        structure = "127d"
+        with self.make_temp_directory(os.getcwd()) as tmp:
+            pdblist = PDBList(pdb=tmp)
+            pdblist.download_assemblies(
+                pdb_code=structure, file_format="mmCif", overwrite=False
+            )
+            self.assertTrue(os.path.isfile(os.path.join(tmp, "27/127d-assembly1.cif")))
 
 
 class TestPDBListGetAssembly(unittest.TestCase):
