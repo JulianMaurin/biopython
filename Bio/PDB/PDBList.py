@@ -49,7 +49,6 @@ import socket
 import sys
 import time
 from urllib.parse import urljoin
-from urllib.parse import urlunsplit
 from urllib.parse import urlsplit
 from urllib.request import urlcleanup
 from urllib.request import urlopen
@@ -111,13 +110,15 @@ class PDBList:
     http://www.pdb.org/.
     """
 
-    def __init__(self, server=None, pdb=None, obsolete_pdb=None, verbose=True):
+    def __init__(
+        self, server: str | None = None, pdb=None, obsolete_pdb=None, verbose=True
+    ):
         """Initialize the class with the default server or a custom one.
 
         Argument pdb is the local path to use, defaulting to the current
         directory at the moment of initialisation.
         """
-        self.pdb_server = self._get_pdb_server_url(server)
+        self.pdb_server = PDBServer(server) if server else get_fastest_server()
 
         if pdb:
             self.local_pdb = pdb  # local pdb file tree
@@ -137,25 +138,6 @@ class PDBList:
 
         # variable for command-line option
         self.flat_tree = False
-
-    def _get_pdb_server_url(self, server: str | PDBServer | None) -> str:
-        """Get remote PDB server url.
-
-        Handle legacy server declaration (str).
-        If no server specified, chose the fastest one.
-        """
-        pdb_server = None
-        if server is None:
-            pdb_server = get_fastest_server()
-        elif isinstance(server, str):
-            pdb_server = PDBServer(server)
-        elif isinstance(server, PDBServer):
-            pdb_server = server
-
-        if pdb_server:
-            pdb_server.pdb_dir_url
-
-        raise TypeError(f"Unsupported server option: {server}")
 
     @staticmethod
     def _print_default_format_warning(file_format):
@@ -202,7 +184,7 @@ class PDBList:
             -rw-r--r--   1 1002     sysadmin    1327 Mar 12  2001 README
 
         """
-        url = urljoin(self.pdb_server, "data/status/latest")
+        url = urljoin(self.pdb_server.pdb_dir_url, "data/status/latest")
 
         # Retrieve the lists
         added = self.get_status_list(f"{url}/added.pdb")
@@ -215,7 +197,7 @@ class PDBList:
 
         Returns a list of PDB codes in the index file.
         """
-        url = urljoin(self.pdb_server, "derived_data/index/entries.idx")
+        url = urljoin(self.pdb_server.pdb_dir_url, "derived_data/index/entries.idx")
         if self._verbose:
             print("Retrieving index file. Takes about 27 MB.")
         with contextlib.closing(urlopen(url)) as handle:
@@ -247,7 +229,7 @@ class PDBList:
             ...
 
         """
-        url = urljoin(self.pdb_server, "data/status/obsolete.dat")
+        url = urljoin(self.pdb_server.pdb_dir_url, "data/status/obsolete.dat")
         with contextlib.closing(urlopen(url)) as handle:
             # Extract pdb codes. Could use a list comprehension, but I want
             # to include an assert to check for mis-reading the data.
@@ -336,12 +318,12 @@ class PDBList:
                 else "XML"
             )
             url = urljoin(
-                self.pdb_server,
+                self.pdb_server.pdb_dir_url,
                 f"data/structures/{pdb_dir}/{file_type}/{code[1:3]}/{archive_fn}",
             )
         elif file_format == "bundle":
             url = urljoin(
-                self.pdb_server,
+                self.pdb_server.pdb_dir_url,
                 f"compatible/pdb_bundle/{code[1:3]}/{code}/{archive_fn}",
             )
         else:
@@ -520,16 +502,10 @@ class PDBList:
             print("Retrieving list of assemblies. This might take a while.")
 
         # FTPLib is much faster than urlopen
-        idx = self.pdb_server.find("://")
-        pdb_server = self.pdb_server
-        if idx >= 0:
-            pdb_server = self.pdb_server[idx + 3 :]
-            ftp = ftplib.FTP(pdb_server.split("/", 1)[0])
-        else:
-            ftp = ftplib.FTP(pdb_server.split("/", 1)[0])
+        url_parts = urlsplit(self.pdb_server.pdb_dir_url)
+        ftp = ftplib.FTP(url_parts.netloc)
         ftp.login()  # anonymous
-        pdb_dir_path = pdb_server.split("/", 1)[1]
-        ftp.cwd(pdb_dir_path)
+        ftp.cwd(url_parts.path)
         if file_format.lower() == "mmcif":
             ftp.cwd("data/assemblies/mmCIF/all/")
             re_name = re.compile(r"(\d[0-9a-z]{3})-assembly(\d+).cif.gz")
@@ -593,9 +569,13 @@ class PDBList:
         archive_fn = archive[file_format] % (pdb_code.lower(), int(assembly_num))
 
         if file_format == "mmcif":
-            url = urljoin(self.pdb_server, f"data/assemblies/mmCIF/all/{archive_fn}")
+            url = urljoin(
+                self.pdb_server.pdb_dir_url, f"data/assemblies/mmCIF/all/{archive_fn}"
+            )
         elif file_format == "pdb":
-            url = urljoin(self.pdb_server, f"data/biounit/PDB/all/{archive_fn}")
+            url = urljoin(
+                self.pdb_server.pdb_dir_url, f"data/biounit/PDB/all/{archive_fn}"
+            )
         else:  # better safe than sorry
             raise ValueError("file_format '%s' not supported: %s" % file_format)
 
@@ -710,7 +690,7 @@ class PDBList:
         """Retrieve and save a (big) file containing all the sequences of PDB entries."""
         if self._verbose:
             print("Retrieving sequence file (takes over 110 MB).")
-        url = urljoin(self.pdb_server, "derived_data/pdb_seqres.txt")
+        url = urljoin(self.pdb_server.pdb_dir_url, "derived_data/pdb_seqres.txt")
         urlretrieve(url, savefile)
 
 
