@@ -126,6 +126,7 @@ class PDBServer:
 
 SERVERS = [
     PDBServer("https://files.rcsb.org/pub/pdb/"),
+    PDBServer("https://s3.rcsb.org/pub/pdb/"),
     PDBServer("https://ftp.ebi.ac.uk/pub/databases/pdb/"),
     PDBServer("https://ftp.pdbj.org/pub/pdb/"),
 ]
