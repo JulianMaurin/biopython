@@ -74,6 +74,18 @@ class PDBServer:
         with contextlib.closing(urlopen(url)) as handle:
             return re.findall(r"(\w{4})\t.*", handle.read().decode())
 
+    @functools.cached_property
+    def latests(self) -> tuple[list[str], list[str], list[str]]:
+        """Return three lists of the newest weekly files (added,mod,obsolete)."""
+        latest_dir_url = urljoin(self.pdb_dir_url, "data/status/latest/")
+        latests = {}
+        latest_regex = re.compile(r"(\w{4})\n.*")
+        for latest in ["added", "modified", "obsolete"]:
+            latest_url = urljoin(latest_dir_url, f"{latest}.pdb")
+            with contextlib.closing(urlopen(latest_url)) as handle:
+                latests[latest] = latest_regex.findall(handle.read().decode())
+        return (latests["added"], latests["modified"], latests["obsolete"])
+
 
 SERVERS = [
     PDBServer("ftp://ftp.rcsb.org/pub/pdb/"),
@@ -159,45 +171,6 @@ class PDBList:
             )
             return "mmCif"
         return file_format
-
-    @staticmethod
-    def get_status_list(url):
-        """Retrieve a list of pdb codes in the weekly pdb status file from given URL.
-
-        Used by get_recent_changes. Typical contents of the list files parsed
-        by this method is now very simply - one PDB name per line.
-        """
-        with contextlib.closing(urlopen(url)) as handle:
-            answer = []
-            for line in handle:
-                pdb = line.strip()
-                assert len(pdb) == 4
-                answer.append(pdb.decode())
-        return answer
-
-    def get_recent_changes(self):
-        """Return three lists of the newest weekly files (added,mod,obsolete).
-
-        Reads the directories with changed entries from the PDB server and
-        returns a tuple of three URL's to the files of new, modified and
-        obsolete entries from the most recent list. The directory with the
-        largest numerical name is used.
-        Returns None if something goes wrong.
-
-        Contents of the data/status dir (20031013 would be used);:
-
-            drwxrwxr-x   2 1002     sysadmin     512 Oct  6 18:28 20031006
-            drwxrwxr-x   2 1002     sysadmin     512 Oct 14 02:14 20031013
-            -rw-r--r--   1 1002     sysadmin    1327 Mar 12  2001 README
-
-        """
-        url = urljoin(self.pdb_server.pdb_dir_url, "data/status/latest")
-
-        # Retrieve the lists
-        added = self.get_status_list(f"{url}/added.pdb")
-        modified = self.get_status_list(f"{url}/modified.pdb")
-        obsolete = self.get_status_list(f"{url}/obsolete.pdb")
-        return [added, modified, obsolete]
 
     def get_all_obsolete(self):
         """Return a list of all obsolete entries ever in the PDB.
@@ -377,7 +350,7 @@ class PDBList:
         # Deprecation warning
         file_format = self._print_default_format_warning(file_format)
 
-        new, modified, obsolete = self.get_recent_changes()
+        new, modified, obsolete = self.pdb_server.latests
 
         for pdb_code in new + modified:
             try:
