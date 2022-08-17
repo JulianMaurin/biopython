@@ -71,8 +71,7 @@ class PDBServer:
     def entries(self) -> list[str]:
         """List of PDB codes based on entries.idx."""
         url = urljoin(self.pdb_dir_url, "derived_data/index/entries.idx")
-        with contextlib.closing(urlopen(url)) as handle:
-            return re.findall(r"(\w{4})\t.*", handle.read().decode())
+        return re.findall(r"(\w{4})\t.*", read_url(url).decode())
 
     @functools.cached_property
     def latests(self) -> tuple[list[str], list[str], list[str]]:
@@ -82,8 +81,7 @@ class PDBServer:
         latest_regex = re.compile(r"(\w{4})\n.*")
         for latest in ["added", "modified", "obsolete"]:
             latest_url = urljoin(latest_dir_url, f"{latest}.pdb")
-            with contextlib.closing(urlopen(latest_url)) as handle:
-                latests[latest] = latest_regex.findall(handle.read().decode())
+            latests[latest] = latest_regex.findall(read_url(latest_url).decode())
         return (latests["added"], latests["modified"], latests["obsolete"])
 
     @functools.cached_property
@@ -111,17 +109,22 @@ class PDBServer:
 
         """
         url = urljoin(self.pdb_dir_url, "data/status/obsolete.dat")
-        with contextlib.closing(urlopen(url)) as handle:
-            return re.findall(
-                r"OBSLTE\s+\d{2}-\w{3}-\d{2}\s+(\w{4})", handle.read().decode()
-            )
+        return re.findall(
+            r"OBSLTE\s+\d{2}-\w{3}-\d{2}\s+(\w{4})", read_url(url).decode()
+        )
 
     @functools.cached_property
     def sequences(self):
         """Retrieve and save a (big) file containing all the sequences of PDB entries."""
         url = urljoin(self.pdb_dir_url, "derived_data/pdb_seqres.txt")
-        with contextlib.closing(urlopen(url)) as handle:
-            return handle.read()
+        return read_url(url)
+
+
+@functools.lru_cache(maxsize=None)
+def read_url(url: str):
+    """Read resource from URL."""
+    with contextlib.closing(urlopen(url)) as handle:
+        return handle.read()
 
 
 SERVERS = [
