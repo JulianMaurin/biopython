@@ -50,6 +50,7 @@ import sys
 import time
 from urllib.parse import urljoin
 from urllib.parse import urlunsplit
+from urllib.parse import urlsplit
 from urllib.request import urlcleanup
 from urllib.request import urlopen
 from urllib.request import urlretrieve
@@ -61,21 +62,17 @@ from Bio.PDB.PDBExceptions import PDBException
 class PDBServer:
     """Dataclass to store parameters for connecting to PDB server.
 
-    param domain: server domain name.
-    type domain: string
-
-    :param pdb_dir_path: path to the PDB data directory.
-    :type domain: string
+    param pdb_dir_url: URL to the pdb directory.
+    type pdb_dir_url: string
     """
 
-    domain: str
-    pdb_dir_path: str
+    pdb_dir_url: str
 
 
 SERVERS = [
-    PDBServer("ftp.rcsb.org", "/pub/pdb/"),
-    PDBServer("ftp.ebi.ac.uk", "/pub/databases/pdb/"),
-    PDBServer("ftp.pdbj.org", "/pub/pdb/"),
+    PDBServer("ftp://ftp.rcsb.org/pub/pdb/"),
+    PDBServer("ftp://ftp.ebi.ac.uk/pub/databases/pdb/"),
+    PDBServer("ftp://ftp.pdbj.org/pub/pdb/"),
 ]
 
 
@@ -151,14 +148,12 @@ class PDBList:
         if server is None:
             pdb_server = get_fastest_server()
         elif isinstance(server, str):
-            return urljoin(server, "pub/pdb/")
+            pdb_server = PDBServer(server)
         elif isinstance(server, PDBServer):
             pdb_server = server
 
         if pdb_server:
-            return urlunsplit(
-                ("ftp", pdb_server.domain, pdb_server.pdb_dir_path, None, None)
-            )
+            pdb_server.pdb_dir_url
 
         raise TypeError(f"Unsupported server option: {server}")
 
@@ -727,12 +722,14 @@ def get_fastest_server(servers: list[PDBServer] | None = None) -> PDBServer:
     fastest_timing = None
 
     for server in servers:
+        url_parts = urlsplit(server.pdb_dir_url)
+
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.settimeout(1)
 
         time_before_connect = time.time()
         try:
-            server_socket.connect((server.domain, 21))
+            server_socket.connect((url_parts.hostname, url_parts.port or 443))
         except Exception:
             continue
         finally:
