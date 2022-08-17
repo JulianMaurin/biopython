@@ -37,7 +37,6 @@
 
 from __future__ import annotations
 
-import collections
 import contextlib
 import dataclasses
 import ftplib
@@ -49,12 +48,11 @@ import shutil
 import socket
 import sys
 import time
-
-from urllib.request import urlopen
-from urllib.request import urlretrieve
-from urllib.request import urlcleanup
 from urllib.parse import urljoin
 from urllib.parse import urlunsplit
+from urllib.request import urlcleanup
+from urllib.request import urlopen
+from urllib.request import urlretrieve
 
 from Bio.PDB.PDBExceptions import PDBException
 
