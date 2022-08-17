@@ -125,9 +125,9 @@ class PDBServer:
 
 
 SERVERS = [
-    PDBServer("ftp://ftp.rcsb.org/pub/pdb/"),
-    PDBServer("ftp://ftp.ebi.ac.uk/pub/databases/pdb/"),
-    PDBServer("ftp://ftp.pdbj.org/pub/pdb/"),
+    PDBServer("https://files.rcsb.org/pub/pdb/"),
+    PDBServer("https://ftp.ebi.ac.uk/pub/databases/pdb/"),
+    PDBServer("https://ftp.pdbj.org/pub/pdb/"),
 ]
 
 
