@@ -15,6 +15,7 @@ from urllib.parse import urljoin
 
 # We want to test this module:
 from Bio.PDB.PDBList import PDBList
+from Bio.PDB.PDBList import get_fastest_server
 
 import requires_internet
 
@@ -31,15 +32,6 @@ class TestPBDListGetList(unittest.TestCase):
         url = urljoin(pdblist.pdb_server.pdb_dir_url, "data/status/latest/added.pdb")
         entries = pdblist.get_status_list(url)
         self.assertIsNotNone(entries)
-
-    def test_get_all_entries(self):
-        """Tests the Bio.PDB.PDBList.get_all_entries method."""
-        # obsolete_pdb declared to prevent from creating the "obsolete" directory
-        pdblist = PDBList(obsolete_pdb="unimportant")
-        entries = pdblist.get_all_entries()
-        # As number of entries constantly grow, test checks if a certain number was
-        # exceeded
-        self.assertGreater(len(entries), 100000)
 
     def test_get_all_obsolete(self):
         """Tests the Bio.PDB.PDBList.get_all_obsolete method."""
@@ -212,6 +204,14 @@ class TestPDBListGetAssembly(unittest.TestCase):
             "mmCif",
             pdir="b",
         )
+
+
+class TestPDBServer(unittest.TestCase):
+    def test_get_all_entries(self):
+        """Tests the Bio.PDB.PDBList.entries method."""
+        # As number of entries constantly grow,
+        # test checks if a certain number was exceeded
+        self.assertGreater(len(get_fastest_server().entries), 190000)
 
 
 if __name__ == "__main__":

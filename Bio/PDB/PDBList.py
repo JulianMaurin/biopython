@@ -67,6 +67,13 @@ class PDBServer:
 
     pdb_dir_url: str
 
+    @functools.cached_property
+    def entries(self) -> list[str]:
+        """List of PDB codes based on entries.idx."""
+        url = urljoin(self.pdb_dir_url, "derived_data/index/entries.idx")
+        with contextlib.closing(urlopen(url)) as handle:
+            return re.findall(r"(\w{4})\t.*", handle.read().decode())
+
 
 SERVERS = [
     PDBServer("ftp://ftp.rcsb.org/pub/pdb/"),
@@ -191,20 +198,6 @@ class PDBList:
         modified = self.get_status_list(f"{url}/modified.pdb")
         obsolete = self.get_status_list(f"{url}/obsolete.pdb")
         return [added, modified, obsolete]
-
-    def get_all_entries(self):
-        """Retrieve the big file containing all the PDB entries and some annotation.
-
-        Returns a list of PDB codes in the index file.
-        """
-        url = urljoin(self.pdb_server.pdb_dir_url, "derived_data/index/entries.idx")
-        if self._verbose:
-            print("Retrieving index file. Takes about 27 MB.")
-        with contextlib.closing(urlopen(url)) as handle:
-            all_entries = [
-                line[:4].decode() for line in handle.readlines()[2:] if len(line) > 4
-            ]
-        return all_entries
 
     def get_all_obsolete(self):
         """Return a list of all obsolete entries ever in the PDB.
@@ -655,13 +648,12 @@ class PDBList:
         """
         # Deprecation warning
         file_format = self._print_default_format_warning(file_format)
-        entries = self.get_all_entries()
-        for pdb_code in entries:
+        for pdb_code in self.pdb_server.entries:
             self.retrieve_pdb_file(pdb_code, file_format=file_format)
         # Write the list
         if listfile:
             with open(listfile, "w") as outfile:
-                outfile.writelines(x + "\n" for x in entries)
+                outfile.write("\n".join(self.pdb_server.entries))
 
     def download_obsolete_entries(self, listfile=None, file_format=None):
         """Retrieve all obsolete PDB entries not present in local obsolete PDB copy.
